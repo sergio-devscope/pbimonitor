@@ -88,7 +88,7 @@ function Read-FromGraphAPI {
                 Start-Sleep -Seconds 1000
             }              
             else {
-                if ($ex.Response -ne $null) {
+                if ($null -ne $ex.Response) {
                     $statusCode = $ex.Response.StatusCode
 
                     $stream = $ex.Response.GetResponseStream()
@@ -184,7 +184,7 @@ try {
 
         Write-Host "Calling Graph API: '$($graphCall.GraphUrl)'"
 
-        $data = Read-FromGraphAPI -accessToken $authToken -url $graphCall.GraphUrl | select * -ExcludeProperty "@odata.id"
+        $data = Read-FromGraphAPI -accessToken $authToken -url $graphCall.GraphUrl | Select-Object * -ExcludeProperty "@odata.id"
 
         $filePath = $graphCall.FilePath
 
