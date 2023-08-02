@@ -152,7 +152,7 @@ try {
         }
         ,
         @{
-            GraphUrl = "$graphUrl/subscriptions";
+            GraphUrl = "$graphUrl/directory/subscriptions";
             FilePath = "$outputPath\subscriptions.json"
         }   
     )
