@@ -149,7 +149,12 @@ try {
         @{
             GraphUrl = "$graphUrl/subscribedSkus?`$select=id,capabilityStatus,consumedUnits,prepaidUnits,skuid,skupartnumber,prepaidUnits";
             FilePath = "$outputPath\subscribedskus.json"
-        }    
+        }
+        ,
+        @{
+            GraphUrl = "$graphUrl/subscriptions";
+            FilePath = "$outputPath\subscriptions.json"
+        }   
     )
 
     if ($config.GraphExtractGroups)
