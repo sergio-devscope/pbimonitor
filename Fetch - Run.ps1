@@ -2,9 +2,10 @@ param(
     [string]$configFilePath = ".\Config.json"
     ,
     [array]$scriptsToRun = @(
+        #".\Fetch - Reports.ps1"
         ".\Fetch - Activity.ps1"
         ".\Fetch - Catalog.ps1"
-        ".\Fetch - Graph.ps1"
+        #".\Fetch - Graph.ps1"
         #".\Fetch - DataSetRefresh.ps1"
     )
 )
@@ -37,7 +38,7 @@ else {
 
 # Ensure Folders for PBI Report
 
-@("$($config.OutputPath)\Activity", "$($config.OutputPath)\Catalog", "$($config.OutputPath)\Graph") |% {
+@("$($config.OutputPath)\Activity", "$($config.OutputPath)\Catalog", "$($config.OutputPath)\Graph", "$($config.OutputPath)\Reports") |% {
     New-Item -ItemType Directory -Path $_ -ErrorAction SilentlyContinue | Out-Null
 }
 
