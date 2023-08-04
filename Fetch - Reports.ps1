@@ -36,7 +36,6 @@ try {
         $state = New-Object psobject 
     }
     
-    $maxHistoryDate = [datetime]::UtcNow.Date.AddDays(-30)
 
     if ($state.Reports.LastRun) {
         if (!($state.Reports.LastRun -is [datetime])) {
@@ -46,18 +45,11 @@ try {
     }
     else {
         $state | Add-Member -NotePropertyName "Reports" -NotePropertyValue @{"LastRun" = $null } -Force
-        $pivotDate = $maxHistoryDate
     }
-
-    if ($pivotDate -lt $maxHistoryDate)
-    {
-        Write-Host "Last run was more than 30 days ago"
-        $pivotDate = $maxHistoryDate
-    }
-
+    
     Write-Host "Since: $($pivotDate.ToString("s"))"
     Write-Host "OutputBatchCount: $outputBatchCount"
-
+    $pivotDate = [datetime]::UtcNow.Date
     Write-Host "Getting OAuth Token"
 
     if ($config.ServicePrincipal.AppId)
@@ -77,7 +69,7 @@ try {
     while ($pivotDate -le [datetime]::UtcNow) {           
         Write-Host "Getting audit data for: '$($pivotDate.ToString("yyyyMMdd"))'"        
             
-        $reportsAPIUrl = "https://api.powerbi.com/v1.0/myorg/admin/reports"
+        $reportsAPIUrl = "admin/reports"
 
         $audits = @()                  
         $pageIndex = 1
@@ -88,16 +80,20 @@ try {
             if (!$result.continuationUri)
             {
                 $result = Invoke-PowerBIRestMethod -Url $reportsAPIUrl -method Get | ConvertFrom-Json
+                Write-Host "Resultado1: '$result'" 
             }
             else {
                 $result = Invoke-PowerBIRestMethod -Url $result.continuationUri -method Get | ConvertFrom-Json
             }            
                                 
-            if ($result.activityEventEntities)
+            if ($result.value)
             {
-                $audits += @($result.activityEventEntities)               
+                $audits += @($result.value)               
             }
-
+            Write-Host "result.reportsEntities: '$($result.value.id)'" 
+            Write-Host "audits.Count: '$($audits.Count)'"   
+            Write-Host "outputBatchCount: '$outputBatchCount'" 
+            Write-Host "result.continuationToken: '$($result.continuationToken)'" 
             if ($audits.Count -ne 0 -and ($audits.Count -ge $outputBatchCount -or $null -eq $result.continuationToken))
             {
                 # To avoid duplicate data on existing files, first dont append pageindex to overwrite existing full file
@@ -109,7 +105,7 @@ try {
                 else {
                     $outputFilePath = ("$outputPath\{0:yyyyMMdd}_$pageIndex.json" -f $pivotDate)
                 }  
-
+                
                 Write-Host "Writing '$($audits.Count)' audits"
 
                 New-Item -Path (Split-Path $outputFilePath -Parent) -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
@@ -119,7 +115,7 @@ try {
                 if ($config.StorageAccountConnStr -and (Test-Path $outputFilePath)) {
                     Write-Host "Writing to Blob Storage"
                     
-                    $storageRootPath = "$($config.StorageAccountContainerRootPath)/Reports"
+                    $storageRootPath = "$($config.StorageAccountContainerRootPath)/reports"
         
                     Add-FileToBlobStorage -storageAccountConnStr $config.StorageAccountConnStr -storageContainerName $config.StorageAccountContainerName -storageRootPath $storageRootPath -filePath $outputFilePath -rootFolderPath $rootOutputPath         
 
