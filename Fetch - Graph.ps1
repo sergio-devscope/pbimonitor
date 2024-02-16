@@ -88,7 +88,7 @@ function Read-FromGraphAPI {
                 Start-Sleep -Seconds 1000
             }              
             else {
-                if ($null -ne $ex.Response) {
+                if ($ex.Response -ne $null) {
                     $statusCode = $ex.Response.StatusCode
 
                     $stream = $ex.Response.GetResponseStream()
@@ -142,21 +142,19 @@ try {
 
     $graphCalls = @(
         @{
-            GraphUrl = "$graphUrl/users?`$select=id,displayName,assignedLicenses,UserPrincipalName";
+            GraphUrl = "$graphUrl/users?`$select=id,mail,companyName,displayName,signInActivity,assignedLicenses,onPremisesUserPrincipalName,UserPrincipalName,jobTitle,employeeid,department,userType,usageLocation,accountEnabled,givenName,surname,createdDateTime,employeeHireDate,employeeType,preferredLanguage,state,country,onPremisesDistinguishedName,onPremisesDomainName";
             FilePath = "$outputPath\users.json"
         }
         ,
         @{
             GraphUrl = "$graphUrl/subscribedSkus?`$select=id,capabilityStatus,consumedUnits,prepaidUnits,skuid,skupartnumber,prepaidUnits";
             FilePath = "$outputPath\subscribedskus.json"
-        } 
+        }    
     )
 
-    if ($config.GraphExtractGroups)
-    {
+    if ($config.GraphExtractGroups) {
         Write-Host "Adding graph call to extract groups"
         $graphCalls += @{
-            #GraphUrl = "$graphUrl/groups?`$expand=members(`$select=id,displayName,appId,userPrincipalName)&`$select=id,displayName";
             GraphUrl = "$graphUrl/groups?`$filter=securityEnabled eq true&`$select=id,displayName";
             FilePath = "$outputPath\groups.json"
         }
@@ -164,45 +162,34 @@ try {
 
     $paginateCount = 10000  
 
-    if ($config.GraphPaginateCount)
-    {
+    if ($config.GraphPaginateCount) {
         $paginateCount = $config.GraphPaginateCount
     }
 
     Write-Host "GraphPaginateCount: $paginateCount"   
 
-    foreach ($graphCall in $graphCalls)
-    {
+    foreach ($graphCall in $graphCalls) {
         Write-Host "Getting OAuth token"
 
         $authToken = Get-AuthToken -resource $apiResource -appid $config.ServicePrincipal.AppId -appsecret $config.ServicePrincipal.AppSecret -tenantid $config.ServicePrincipal.TenantId
 
         Write-Host "Calling Graph API: '$($graphCall.GraphUrl)'"
 
-        $data = Read-FromGraphAPI -accessToken $authToken -url $graphCall.GraphUrl | Select-Object * -ExcludeProperty "@odata.id"
+        $data = Read-FromGraphAPI -accessToken $authToken -url $graphCall.GraphUrl | select * -ExcludeProperty "@odata.id"
 
         $filePath = $graphCall.FilePath
 
         Get-ArrayInBatches -array $data -label "Read-FromGraphAPI Local Batch" -batchCount $paginateCount -script {
             param($dataBatch, $i)
             
-            if ($i)
-            {
+            if ($i) {
                 $filePath = "$([System.IO.Path]::GetDirectoryName($filePath))\$([System.IO.Path]::GetFileNameWithoutExtension($filePath))_$i$([System.IO.Path]::GetExtension($filePath))"
             }
 
-            if ($graphCall.GraphUrl -like "$graphUrl/groups*")
-            {
-                #$groupsWithMoreThan20Members = $dataBatch |? { $_.members.Count -ge 20 }
-            
-                #Write-Host "Groups with more than 20 members: $($groupsWithMoreThan20Members.Count)"
-                
-                #foreach($group in $groupsWithMoreThan20Members)
-
+            if ($graphCall.GraphUrl -like "$graphUrl/groups*") {
                 Write-Host "Looping group batch to get members"
 
-                foreach($group in $dataBatch)
-                {        
+                foreach ($group in $dataBatch) {        
                     $groupMembers = @(Read-FromGraphAPI -accessToken $authToken -url "$graphUrl/groups/$($group.id)/transitiveMembers?`$select=id,displayName,appId,userPrincipalName")
         
                     #$group.members = $groupMembers    
@@ -222,8 +209,7 @@ try {
         
                 $outputFilePath = $filePath
          
-                if (Test-Path $outputFilePath)
-                {
+                if (Test-Path $outputFilePath) {
                     Add-FileToBlobStorage -storageAccountConnStr $config.StorageAccountConnStr -storageContainerName $config.StorageAccountContainerName -storageRootPath $storageRootPath -filePath $outputFilePath -rootFolderPath $rootOutputPath    
     
                     Remove-Item $outputFilePath -Force
